@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     # Application
     app_name: str = "WhatsApp AI Chatbot"
     app_base_url: str = "http://localhost:8000"
+    log_level: str = "DEBUG"
 
     # Session
     session_secret_key: str = "change-me-in-production"
@@ -20,6 +21,9 @@ class Settings(BaseSettings):
     # Google OAuth
     google_client_id: str = ""
     google_client_secret: str = ""
+
+    # MongoDB
+    mongo_uri: str = ""
 
     @property
     def google_redirect_uri(self) -> str:
