@@ -32,6 +32,11 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
+      - name: Create deploy directory
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+            "mkdir -p ${{ env.DEPLOY_PATH }}"
+
       - name: Copy docker-compose to VPS
         run: |
           scp -o StrictHostKeyChecking=no \
