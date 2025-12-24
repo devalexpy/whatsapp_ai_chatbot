@@ -15,6 +15,7 @@ def setup_logging(level: str = "INFO") -> None:
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
     logging.getLogger("authlib").setLevel(logging.WARNING)
+    logging.getLogger("pymongo").setLevel(logging.WARNING)
 
 
 def get_logger(name: str) -> logging.Logger:

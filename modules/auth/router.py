@@ -1,12 +1,14 @@
 from typing import Any
 
 from authlib.integrations.starlette_client import OAuth
-from fastapi import APIRouter, Request
-from starlette.middleware.sessions import SessionMiddleware
+from fastapi import APIRouter, HTTPException, Request, status
 from starlette.responses import RedirectResponse
 
 from config import settings
 from modules.auth.context import AuthContext
+from modules.auth.jwt import create_tokens, decode_token
+from modules.auth.schemas import Token
+from modules.users import service as user_service
 
 # Global OAuth instance
 oauth = OAuth()
@@ -16,16 +18,6 @@ auth_context = AuthContext(oauth)
 
 # Authentication router
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
-
-
-def get_session_middleware() -> SessionMiddleware:
-    """
-    Return the session middleware required for OAuth.
-
-    Must be added to the FastAPI application:
-        app.add_middleware(SessionMiddleware, secret_key=...)
-    """
-    return SessionMiddleware
 
 
 @auth_router.get("/providers")
@@ -50,7 +42,7 @@ async def login(request: Request, provider: str) -> RedirectResponse:
 
 
 @auth_router.get("/{provider}/callback")
-async def callback(request: Request, provider: str) -> dict[str, Any]:
+async def callback(request: Request, provider: str) -> Token:
     """
     OAuth provider callback after authorization.
 
@@ -59,19 +51,54 @@ async def callback(request: Request, provider: str) -> dict[str, Any]:
         provider: Provider name sending the callback.
 
     Returns:
-        Authenticated user information.
-
-    Note:
-        In production, you should:
-        - Create/update the user in the database
-        - Generate a JWT or session
-        - Redirect to the frontend with the token
+        JWT tokens for authentication.
     """
     user_info = await auth_context.callback(request, provider_name=provider)
-    return {
-        "message": "Authentication successful",
-        "user": user_info,
-    }
+
+    # Find or create user using the user service
+    user, _ = await user_service.get_or_create(
+        email=user_info["email"],
+        name=user_info["name"],
+        picture=user_info.get("picture", ""),
+    )
+
+    # Generate tokens
+    tokens = create_tokens(str(user.id))
+    return Token(**tokens)
+
+
+@auth_router.post("/refresh", response_model=Token)
+async def refresh_token(refresh_token: str) -> Token:
+    """
+    Refresh access token using a valid refresh token.
+
+    Args:
+        refresh_token: Valid JWT refresh token.
+
+    Returns:
+        New JWT tokens.
+
+    Raises:
+        HTTPException: If refresh token is invalid.
+    """
+    payload = decode_token(refresh_token)
+
+    if not payload or payload.type != "refresh":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+        )
+
+    # Verify user still exists using the user service
+    user = await user_service.get_by_id(payload.sub)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+
+    tokens = create_tokens(str(user.id))
+    return Token(**tokens)
 
 
 def setup_auth(app: Any) -> None:
@@ -83,7 +110,7 @@ def setup_auth(app: Any) -> None:
 
     Usage:
         from fastapi import FastAPI
-        from modules.auth import auth_router, setup_auth
+        from modules.auth.router import auth_router, setup_auth
 
         app = FastAPI()
         setup_auth(app)

@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     # Session
     session_secret_key: str = "change-me-in-production"
 
+    # JWT
+    jwt_secret_key: str = "change-me-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = 30
+    jwt_refresh_token_expire_days: int = 7
+
     # Google OAuth
     google_client_id: str = ""
     google_client_secret: str = ""

@@ -7,6 +7,8 @@ from config import settings
 from db import db
 from logging_config import get_logger, setup_logging
 from modules.auth.router import auth_router, setup_auth
+from modules.users.models import User
+from modules.users.router import users_router
 
 setup_logging(settings.log_level)
 logger = get_logger(__name__)
@@ -15,7 +17,7 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Initializing database...")
-    await init_beanie(database=db, document_models=[])
+    await init_beanie(database=db, document_models=[User])
     logger.info("Database initialized")
     yield
 
@@ -23,3 +25,4 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 setup_auth(app)
 app.include_router(auth_router)
+app.include_router(users_router)
