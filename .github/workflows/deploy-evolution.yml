@@ -1,0 +1,88 @@
+name: Deploy Evolution API
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'docker-compose.evolution.yml'
+      - 'evolution-api/**'
+      - '.github/workflows/deploy-evolution.yml'
+  
+  # Permitir ejecución manual
+  workflow_dispatch:
+
+env:
+  DEPLOY_PATH: /opt/evolution
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Copy docker-compose to VPS
+        run: |
+          scp -o StrictHostKeyChecking=no \
+            docker-compose.evolution.yml \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ env.DEPLOY_PATH }}/docker-compose.yml
+
+      - name: Deploy Evolution API
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'ENDSSH'
+            cd ${{ env.DEPLOY_PATH }}
+            
+            echo "📦 Pulling latest images..."
+            docker compose pull
+            
+            echo "🚀 Restarting services..."
+            docker compose up -d --force-recreate
+            
+            echo "🧹 Cleaning up old images..."
+            docker image prune -f
+            
+            echo "✅ Deployment complete!"
+            
+            # Verificar estado
+            echo "📊 Service status:"
+            docker compose ps
+          ENDSSH
+
+      - name: Health check
+        run: |
+          echo "⏳ Waiting for Evolution API to start..."
+          sleep 15
+          
+          # Verificar que Evolution API responde
+          ssh -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'ENDSSH'
+            if curl -s http://localhost:8080 > /dev/null; then
+              echo "✅ Evolution API is running!"
+            else
+              echo "❌ Evolution API health check failed!"
+              docker compose logs --tail=50 evolution-api
+              exit 1
+            fi
+          ENDSSH
+
+      - name: Notify success
+        if: success()
+        run: |
+          echo "🎉 Evolution API deployed successfully!"
+          echo "URL: http://${{ secrets.VPS_HOST }}:8080"
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed! Check the logs above."
+
