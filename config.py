@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     app_base_url: str = "http://localhost:8000"
     log_level: str = "DEBUG"
 
+    # Frontend URLs (comma-separated for multiple origins)
+    frontend_url: str = "http://localhost:3000"
+    allowed_redirect_origins: str = "http://localhost:3000,http://localhost:5173"
+
     # Session
     session_secret_key: str = "change-me-in-production"
 

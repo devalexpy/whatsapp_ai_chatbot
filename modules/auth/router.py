@@ -1,4 +1,5 @@
 from typing import Any
+from urllib.parse import urlencode, urlparse
 
 from authlib.integrations.starlette_client import OAuth
 from fastapi import APIRouter, HTTPException, Request, status
@@ -9,6 +10,25 @@ from modules.auth.context import AuthContext
 from modules.auth.jwt import create_tokens, decode_token
 from modules.auth.schemas import Token
 from modules.users import service as user_service
+
+
+def get_allowed_origins() -> list[str]:
+    """Get list of allowed redirect origins."""
+    return [
+        origin.strip()
+        for origin in settings.allowed_redirect_origins.split(",")
+        if origin.strip()
+    ]
+
+
+def is_valid_redirect_uri(redirect_uri: str) -> bool:
+    """Validate that redirect_uri is from an allowed origin."""
+    if not redirect_uri:
+        return False
+    parsed = urlparse(redirect_uri)
+    origin = f"{parsed.scheme}://{parsed.netloc}"
+    return origin in get_allowed_origins()
+
 
 # Global OAuth instance
 oauth = OAuth()
@@ -27,22 +47,39 @@ async def list_providers() -> dict[str, list[str]]:
 
 
 @auth_router.get("/{provider}/login")
-async def login(request: Request, provider: str) -> RedirectResponse:
+async def login(
+    request: Request,
+    provider: str,
+    redirect_uri: str | None = None,
+) -> RedirectResponse:
     """
     Start the OAuth authentication flow.
 
     Args:
         request: FastAPI request object.
         provider: Provider name (e.g., "google").
+        redirect_uri: Frontend URL to redirect after auth (must be in allowed origins).
 
     Returns:
         Redirect to the OAuth provider for authorization.
     """
+    # Use provided redirect_uri or default to frontend_url
+    final_redirect = redirect_uri or settings.frontend_url
+
+    if not is_valid_redirect_uri(final_redirect):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid redirect_uri. Allowed origins: {get_allowed_origins()}",
+        )
+
+    # Store redirect_uri in session for callback
+    request.session["redirect_uri"] = final_redirect
+
     return await auth_context.login(request, provider_name=provider)
 
 
 @auth_router.get("/{provider}/callback")
-async def callback(request: Request, provider: str) -> Token:
+async def callback(request: Request, provider: str) -> RedirectResponse:
     """
     OAuth provider callback after authorization.
 
@@ -51,7 +88,7 @@ async def callback(request: Request, provider: str) -> Token:
         provider: Provider name sending the callback.
 
     Returns:
-        JWT tokens for authentication.
+        Redirect to frontend with JWT tokens.
     """
     user_info = await auth_context.callback(request, provider_name=provider)
 
@@ -64,7 +101,20 @@ async def callback(request: Request, provider: str) -> Token:
 
     # Generate tokens
     tokens = create_tokens(str(user.id))
-    return Token(**tokens)
+
+    # Get redirect_uri from session or use default
+    redirect_uri = request.session.pop("redirect_uri", settings.frontend_url)
+
+    # Redirect to frontend with tokens as query params
+    query_params = urlencode(
+        {
+            "access_token": tokens["access_token"],
+            "refresh_token": tokens["refresh_token"],
+            "token_type": "bearer",
+        }
+    )
+
+    return RedirectResponse(url=f"{redirect_uri}?{query_params}")
 
 
 @auth_router.post("/refresh", response_model=Token)
