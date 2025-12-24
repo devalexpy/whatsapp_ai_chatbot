@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 FROM python:3.12-slim AS builder
 
 # Instalar uv
@@ -11,15 +9,13 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 
 # Instalar dependencias
-RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --no-dev
+RUN uv sync --frozen --no-install-project --no-dev
 
 # Copiar el código fuente
 COPY . .
 
 # Instalar el proyecto
-RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev
 
 
 FROM python:3.12-slim AS runtime
@@ -42,7 +38,9 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Cambiar al usuario no-root
 USER appuser
 
-EXPOSE 8000
+# Railway asigna el puerto via $PORT
+ENV PORT=8000
+EXPOSE $PORT
 
-CMD ["fastapi", "run", "main.py", "--host", "0.0.0.0", "--port", "8000"]
+CMD fastapi run main.py --host 0.0.0.0 --port $PORT
 
