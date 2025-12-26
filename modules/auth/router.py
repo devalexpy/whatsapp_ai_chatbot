@@ -37,32 +37,42 @@ oauth = OAuth()
 auth_context = AuthContext(oauth)
 
 # Authentication router
-auth_router = APIRouter(prefix="/auth", tags=["auth"])
+auth_router = APIRouter(prefix="/auth", tags=["🔐 Auth"])
 
 
-@auth_router.get("/providers")
+@auth_router.get(
+    "/providers",
+    summary="List authentication providers",
+    description="Gets the list of available OAuth providers for login.",
+    response_description="List of available providers",
+)
 async def list_providers() -> dict[str, list[str]]:
     """List available authentication providers."""
     return {"providers": auth_context.available_providers}
 
 
-@auth_router.get("/{provider}/login")
+@auth_router.get(
+    "/{provider}/login",
+    summary="Start OAuth flow",
+    description="""
+Starts the OAuth authentication flow with the specified provider.
+
+**Flow:**
+1. Frontend redirects user to this endpoint
+2. Backend redirects to OAuth provider (e.g., Google)
+3. After login, redirects to `redirect_uri` with tokens
+
+**Parameters:**
+- `provider`: Provider name (e.g., "google")
+- `redirect_uri`: Frontend URL to receive tokens (optional, uses FRONTEND_URL by default)
+""",
+    response_description="Redirect to OAuth provider",
+)
 async def login(
     request: Request,
     provider: str,
     redirect_uri: str | None = None,
 ) -> RedirectResponse:
-    """
-    Start the OAuth authentication flow.
-
-    Args:
-        request: FastAPI request object.
-        provider: Provider name (e.g., "google").
-        redirect_uri: Frontend URL to redirect after auth (must be in allowed origins).
-
-    Returns:
-        Redirect to the OAuth provider for authorization.
-    """
     # Use provided redirect_uri or default to frontend_url
     final_redirect = redirect_uri or settings.frontend_url
 
@@ -78,18 +88,20 @@ async def login(
     return await auth_context.login(request, provider_name=provider)
 
 
-@auth_router.get("/{provider}/callback")
+@auth_router.get(
+    "/{provider}/callback",
+    summary="OAuth Callback",
+    description="""
+Callback that receives the authorization code from the OAuth provider.
+
+**⚠️ Do not call directly.** This endpoint is automatically called
+by the OAuth provider after the user authorizes the application.
+
+After processing the callback, redirects to frontend with JWT tokens.
+""",
+    response_description="Redirect to frontend with tokens",
+)
 async def callback(request: Request, provider: str) -> RedirectResponse:
-    """
-    OAuth provider callback after authorization.
-
-    Args:
-        request: Request with the authorization code.
-        provider: Provider name sending the callback.
-
-    Returns:
-        Redirect to frontend with JWT tokens.
-    """
     user_info = await auth_context.callback(request, provider_name=provider)
 
     # Find or create user using the user service
@@ -117,20 +129,33 @@ async def callback(request: Request, provider: str) -> RedirectResponse:
     return RedirectResponse(url=f"{redirect_uri}?{query_params}")
 
 
-@auth_router.post("/refresh", response_model=Token)
+@auth_router.post(
+    "/refresh",
+    response_model=Token,
+    summary="Refresh tokens",
+    description="""
+Generates new access tokens using a valid refresh token.
+
+**Usage:**
+```json
+{"refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."}
+```
+
+**Response:** New `access_token` and `refresh_token`.
+
+Use this endpoint when the `access_token` expires (typically 15-30 min).
+""",
+    response_description="New JWT tokens",
+    responses={
+        401: {
+            "description": "Invalid or expired refresh token",
+            "content": {
+                "application/json": {"example": {"detail": "Invalid refresh token"}}
+            },
+        },
+    },
+)
 async def refresh_token(refresh_token: str) -> Token:
-    """
-    Refresh access token using a valid refresh token.
-
-    Args:
-        refresh_token: Valid JWT refresh token.
-
-    Returns:
-        New JWT tokens.
-
-    Raises:
-        HTTPException: If refresh token is invalid.
-    """
     payload = decode_token(refresh_token)
 
     if not payload or payload.type != "refresh":

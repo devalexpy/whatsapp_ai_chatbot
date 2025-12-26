@@ -35,6 +35,15 @@ class Settings(BaseSettings):
     # MongoDB
     mongo_uri: str = ""
 
+    # MinIO / S3
+    minio_endpoint: str = "http://localhost:9000"
+    minio_access_key: str = ""
+    minio_secret_key: str = ""
+    minio_bucket: str = "whatsapp-ai-chatbot"
+    minio_secure: bool = False
+    minio_presigned_url_expiry: int = 300  # 5 minutos para upload
+    minio_download_url_expiry: int = 3600  # 1 hora para download
+
     @property
     def google_redirect_uri(self) -> str:
         return f"{self.app_base_url}/auth/google/callback"
