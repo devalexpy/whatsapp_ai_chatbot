@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
+from typing import Any, cast
 
 from beanie import init_beanie
 from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
 
 from config import settings
 from db import db
@@ -125,3 +127,14 @@ app.include_router(products_router)
 app.include_router(variants_router)
 app.include_router(option_groups_router)
 app.include_router(options_router)
+
+# ────────────────────────────────────────────────────────────
+# CORS
+# ────────────────────────────────────────────────────────────
+app.add_middleware(
+    cast(Any, CORSMiddleware),
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
