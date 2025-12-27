@@ -60,7 +60,8 @@ class ProductOption(Document):
     option_group_id: Link[ProductOptionGroup]
     name: str
     price: float
-    image: str | None = None  # MinIO file_key
+    image: str | None = None
+    is_default: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 

@@ -309,15 +309,21 @@ class ProductOptionCreate(BaseModel):
     )
     price: float = Field(
         ge=0,
-        description="Additional price for this option (can be 0)",
+        description="Option price. If is_default=true, this price is included in the base product price",
         examples=[2.50],
+    )
+    is_default: bool = Field(
+        default=False,
+        description="If true, this option is included by default in the product (price included in base). "
+        "The price is kept for calculating discounts when the customer removes this option.",
     )
 
     model_config = {
         "json_schema_extra": {
             "example": {
-                "name": "Extra Cheese",
-                "price": 2.50,
+                "name": "Lettuce",
+                "price": 0.50,
+                "is_default": True,
             }
         }
     }
@@ -339,12 +345,15 @@ class ProductOptionUpdate(BaseModel):
         description="New option price",
         examples=[3.50],
     )
+    is_default: bool | None = Field(
+        default=None,
+        description="Set to true if this option should be included by default",
+    )
 
     model_config = {
         "json_schema_extra": {
             "example": {
-                "name": "Double Cheese",
-                "price": 3.50,
+                "is_default": True,
             }
         }
     }
@@ -355,7 +364,13 @@ class ProductOptionResponse(BaseModel):
 
     id: PydanticObjectId = Field(description="Unique option ID")
     name: str = Field(description="Option name")
-    price: float = Field(description="Additional option price")
+    price: float = Field(
+        description="Option price. If is_default=true, this is included in base product price"
+    )
+    is_default: bool = Field(
+        description="If true, option is included by default (price in base). "
+        "If customer removes it, subtract this price from total."
+    )
     image: str | None = Field(default=None, description="Option image URL")
     created_at: datetime = Field(description="Creation date")
     updated_at: datetime = Field(description="Last update date")
@@ -364,9 +379,10 @@ class ProductOptionResponse(BaseModel):
         "json_schema_extra": {
             "example": {
                 "id": "507f1f77bcf86cd799439014",
-                "name": "Extra Cheese",
-                "price": 2.50,
-                "image": "https://cdn.example.com/options/507f1f77bcf86cd799439014/image.jpg",
+                "name": "Lettuce",
+                "price": 0.50,
+                "is_default": True,
+                "image": None,
                 "created_at": "2024-01-15T10:30:00Z",
                 "updated_at": "2024-01-15T10:30:00Z",
             }
@@ -390,16 +406,26 @@ class ProductOptionGroupResponse(BaseModel):
         "json_schema_extra": {
             "example": {
                 "id": "507f1f77bcf86cd799439015",
-                "name": "Extra Toppings",
+                "name": "Toppings",
                 "options": [
                     {
                         "id": "507f1f77bcf86cd799439014",
-                        "name": "Extra Cheese",
-                        "price": 2.50,
+                        "name": "Lettuce",
+                        "price": 0.50,
+                        "is_default": True,
                         "image": None,
                         "created_at": "2024-01-15T10:30:00Z",
                         "updated_at": "2024-01-15T10:30:00Z",
-                    }
+                    },
+                    {
+                        "id": "507f1f77bcf86cd799439016",
+                        "name": "Extra Cheese",
+                        "price": 2.50,
+                        "is_default": False,
+                        "image": None,
+                        "created_at": "2024-01-15T10:30:00Z",
+                        "updated_at": "2024-01-15T10:30:00Z",
+                    },
                 ],
                 "created_at": "2024-01-15T10:30:00Z",
                 "updated_at": "2024-01-15T10:30:00Z",
@@ -453,16 +479,26 @@ class ProductDetailResponse(BaseModel):
                 "option_groups": [
                     {
                         "id": "507f1f77bcf86cd799439015",
-                        "name": "Extra Toppings",
+                        "name": "Toppings",
                         "options": [
                             {
                                 "id": "507f1f77bcf86cd799439014",
-                                "name": "Extra Cheese",
-                                "price": 2.50,
+                                "name": "Lettuce",
+                                "price": 0.50,
+                                "is_default": True,
                                 "image": None,
                                 "created_at": "2024-01-15T10:30:00Z",
                                 "updated_at": "2024-01-15T10:30:00Z",
-                            }
+                            },
+                            {
+                                "id": "507f1f77bcf86cd799439016",
+                                "name": "Bacon",
+                                "price": 3.00,
+                                "is_default": False,
+                                "image": None,
+                                "created_at": "2024-01-15T10:30:00Z",
+                                "updated_at": "2024-01-15T10:30:00Z",
+                            },
                         ],
                         "created_at": "2024-01-15T10:30:00Z",
                         "updated_at": "2024-01-15T10:30:00Z",

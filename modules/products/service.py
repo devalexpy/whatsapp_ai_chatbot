@@ -95,6 +95,7 @@ async def get_product_detail(
                         id=opt.id,
                         name=opt.name,
                         price=opt.price,
+                        is_default=opt.is_default,
                         image=opt.image,
                         created_at=opt.created_at,
                         updated_at=opt.updated_at,
