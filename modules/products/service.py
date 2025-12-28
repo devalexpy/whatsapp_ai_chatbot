@@ -451,7 +451,8 @@ async def get_option_by_id_for_user(option_id: str, user: User) -> ProductOption
     group: ProductOptionGroup = option.option_group  # type: ignore
     await group.fetch_link(ProductOptionGroup.product)
     product: Product = group.product  # type: ignore
-    if product.user.ref.id != user.id:  # type: ignore
+    await product.fetch_link(Product.user)  # type: ignore[attr-defined]
+    if product.user.id != user.id:  # type: ignore[attr-defined]
         return None
     return option
 
