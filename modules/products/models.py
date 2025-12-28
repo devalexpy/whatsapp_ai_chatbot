@@ -16,7 +16,7 @@ def utc_now() -> datetime:
 class Product(Document):
     """Product model."""
 
-    user_id: Link["User"]  # Product owner
+    user: Link["User"]  # Product owner
     name: Indexed(str)  # type: ignore
     description: str | None = None
     price: float
@@ -31,7 +31,7 @@ class Product(Document):
 class ProductVariant(Document):
     """Product variant (e.g., size, color)."""
 
-    product_id: Link[Product]
+    product: Link[Product]
     name: str
     price: float
     image: str | None = None  # MinIO file_key
@@ -45,7 +45,7 @@ class ProductVariant(Document):
 class ProductOptionGroup(Document):
     """Product option group (e.g., Extras, Ingredients)."""
 
-    product_id: Link[Product]
+    product: Link[Product]
     name: str
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
@@ -57,7 +57,7 @@ class ProductOptionGroup(Document):
 class ProductOption(Document):
     """Product option within a group (e.g., Extra cheese)."""
 
-    option_group_id: Link[ProductOptionGroup]
+    option_group: Link[ProductOptionGroup]
     name: str
     price: float
     image: str | None = None

@@ -40,7 +40,7 @@ async def get_products(
     user: User, skip: int = 0, limit: int = 20
 ) -> tuple[list[Product], int]:
     """Get paginated list of products for a user."""
-    query = Product.find(Product.user_id.id == user.id)  # type: ignore
+    query = Product.find(Product.user.id == user.id)  # type: ignore[attr-defined]
     total = await query.count()
     products = await query.skip(skip).limit(limit).to_list()
     return products, total
@@ -57,7 +57,7 @@ async def get_product_by_id_for_user(product_id: str, user: User) -> Product | N
     if not product:
         return None
     # Check ownership
-    if product.user_id.ref.id != user.id:  # type: ignore
+    if product.user.ref.id != user.id:  # type: ignore
         return None
     return product
 
@@ -72,19 +72,19 @@ async def get_product_detail(
 
     # Get variants
     variants = await ProductVariant.find(
-        ProductVariant.product_id.id == product.id  # type: ignore
+        ProductVariant.product.id == product.id  # type: ignore
     ).to_list()
 
     # Get option groups
     option_groups = await ProductOptionGroup.find(
-        ProductOptionGroup.product_id.id == product.id  # type: ignore
+        ProductOptionGroup.product.id == product.id  # type: ignore
     ).to_list()
 
     # Get options for each group
     option_groups_response = []
     for group in option_groups:
         options = await ProductOption.find(
-            ProductOption.option_group_id.id == group.id  # type: ignore
+            ProductOption.option_group.id == group.id  # type: ignore
         ).to_list()
         option_groups_response.append(
             ProductOptionGroupResponse(
@@ -107,7 +107,7 @@ async def get_product_detail(
             )
         )
 
-    user_id = product.user_id.ref.id  # type: ignore
+    user_id = product.user.ref.id  # type: ignore
     assert user_id is not None
     assert product.id is not None
 
@@ -137,7 +137,7 @@ async def get_product_detail(
 
 async def create_product(user: User, data: ProductCreate) -> Product:
     """Create a new product for a user."""
-    product = Product(user_id=user, **data.model_dump())
+    product = Product(user=user, **data.model_dump())
     await product.insert()
     return product
 
@@ -171,7 +171,7 @@ async def delete_product(product_id: str, user: User) -> bool:
 
     # Delete variants and their images
     variants = await ProductVariant.find(
-        ProductVariant.product_id.id == product.id  # type: ignore
+        ProductVariant.product.id == product.id  # type: ignore
     ).to_list()
     for variant in variants:
         if variant.image:
@@ -180,12 +180,12 @@ async def delete_product(product_id: str, user: User) -> bool:
 
     # Delete option groups and options
     option_groups = await ProductOptionGroup.find(
-        ProductOptionGroup.product_id.id == product.id  # type: ignore
+        ProductOptionGroup.product.id == product.id  # type: ignore
     ).to_list()
 
     for group in option_groups:
         options = await ProductOption.find(
-            ProductOption.option_group_id.id == group.id  # type: ignore
+            ProductOption.option_group.id == group.id  # type: ignore
         ).to_list()
         for option in options:
             if option.image:
@@ -237,7 +237,7 @@ async def get_variants_by_product(product_id: str, user: User) -> list[ProductVa
     if not product:
         return []
     return await ProductVariant.find(
-        ProductVariant.product_id.id == product.id  # type: ignore
+        ProductVariant.product.id == product.id  # type: ignore
     ).to_list()
 
 
@@ -254,9 +254,9 @@ async def get_variant_by_id_for_user(
     if not variant:
         return None
     # Fetch the product to check ownership
-    await variant.fetch_link(ProductVariant.product_id)
-    product = variant.product_id  # type: ignore
-    if product.user_id.ref.id != user.id:  # type: ignore
+    await variant.fetch_link(ProductVariant.product)
+    product = variant.product  # type: ignore
+    if product.user.ref.id != user.id:  # type: ignore
         return None
     return variant
 
@@ -269,7 +269,7 @@ async def create_variant(
     if not product:
         return None
 
-    variant = ProductVariant(product_id=product, **data.model_dump())
+    variant = ProductVariant(product=product, **data.model_dump())
     await variant.insert()
     return variant
 
@@ -345,7 +345,7 @@ async def get_option_groups_by_product(
     if not product:
         return []
     return await ProductOptionGroup.find(
-        ProductOptionGroup.product_id.id == product.id  # type: ignore
+        ProductOptionGroup.product.id == product.id  # type: ignore
     ).to_list()
 
 
@@ -362,9 +362,9 @@ async def get_option_group_by_id_for_user(
     if not group:
         return None
     # Fetch the product to check ownership
-    await group.fetch_link(ProductOptionGroup.product_id)
-    product = group.product_id  # type: ignore
-    if product.user_id.ref.id != user.id:  # type: ignore
+    await group.fetch_link(ProductOptionGroup.product)
+    product = group.product  # type: ignore
+    if product.user.ref.id != user.id:  # type: ignore
         return None
     return group
 
@@ -377,7 +377,7 @@ async def create_option_group(
     if not product:
         return None
 
-    group = ProductOptionGroup(product_id=product, **data.model_dump())
+    group = ProductOptionGroup(product=product, **data.model_dump())
     await group.insert()
     return group
 
@@ -407,7 +407,7 @@ async def delete_option_group(group_id: str, user: User) -> bool:
 
     # Delete group options
     options = await ProductOption.find(
-        ProductOption.option_group_id.id == group.id  # type: ignore
+        ProductOption.option_group.id == group.id  # type: ignore
     ).to_list()
 
     for option in options:
@@ -428,7 +428,7 @@ async def get_options_by_group(group_id: str, user: User) -> list[ProductOption]
     if not group:
         return []
     return await ProductOption.find(
-        ProductOption.option_group_id.id == group.id  # type: ignore
+        ProductOption.option_group.id == group.id  # type: ignore
     ).to_list()
 
 
@@ -443,11 +443,11 @@ async def get_option_by_id_for_user(option_id: str, user: User) -> ProductOption
     if not option:
         return None
     # Fetch the group and product to check ownership
-    await option.fetch_link(ProductOption.option_group_id)
-    group: ProductOptionGroup = option.option_group_id  # type: ignore
-    await group.fetch_link(ProductOptionGroup.product_id)
-    product: Product = group.product_id  # type: ignore
-    if product.user_id.ref.id != user.id:  # type: ignore
+    await option.fetch_link(ProductOption.option_group)
+    group: ProductOptionGroup = option.option_group  # type: ignore
+    await group.fetch_link(ProductOptionGroup.product)
+    product: Product = group.product  # type: ignore
+    if product.user.ref.id != user.id:  # type: ignore
         return None
     return option
 
@@ -460,7 +460,7 @@ async def create_option(
     if not group:
         return None
 
-    option = ProductOption(option_group_id=group, **data.model_dump())
+    option = ProductOption(option_group=group, **data.model_dump())
     await option.insert()
     return option
 

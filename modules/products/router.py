@@ -154,7 +154,7 @@ async def list_products(
         items=[
             ProductResponse(
                 id=cast(PydanticObjectId, p.id),
-                user_id=p.user_id.ref.id,
+                user_id=p.user.ref.id,
                 name=p.name,
                 description=p.description,
                 price=p.price,
@@ -212,7 +212,7 @@ async def create_product(current_user: CurrentUser, data: ProductCreate):
     product = await service.create_product(current_user, data)
     return ProductResponse(
         id=cast(PydanticObjectId, product.id),
-        user_id=product.user_id.ref.id,
+        user_id=product.user.ref.id,
         name=product.name,
         description=product.description,
         price=product.price,
@@ -282,7 +282,7 @@ async def update_product(
         )
     return ProductResponse(
         id=cast(PydanticObjectId, product.id),
-        user_id=product.user_id.ref.id,  # type: ignore
+        user_id=product.user.ref.id,
         name=product.name,
         description=product.description,
         price=product.price,

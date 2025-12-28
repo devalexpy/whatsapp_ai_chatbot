@@ -21,8 +21,11 @@ from modules.products.router import (
     products_router,
     variants_router,
 )
-from modules.users.models import User
+from modules.users.models import User  # Must import User first
 from modules.users.router import users_router
+
+# Rebuild Product model to resolve forward reference to User
+Product.model_rebuild()
 
 setup_logging(settings.log_level)
 logger = get_logger(__name__)
