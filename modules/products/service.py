@@ -139,6 +139,7 @@ async def create_product(user: User, data: ProductCreate) -> Product:
     """Create a new product for a user."""
     product = Product(user=user, **data.model_dump())
     await product.insert()
+    await product.fetch_link(Product.user)
     return product
 
 
@@ -271,6 +272,7 @@ async def create_variant(
 
     variant = ProductVariant(product=product, **data.model_dump())
     await variant.insert()
+    await variant.fetch_link(ProductVariant.product)
     return variant
 
 
@@ -379,6 +381,7 @@ async def create_option_group(
 
     group = ProductOptionGroup(product=product, **data.model_dump())
     await group.insert()
+    await group.fetch_link(ProductOptionGroup.product)
     return group
 
 
@@ -462,6 +465,7 @@ async def create_option(
 
     option = ProductOption(option_group=group, **data.model_dump())
     await option.insert()
+    await option.fetch_link(ProductOption.option_group)
     return option
 
 
