@@ -57,7 +57,8 @@ async def get_product_by_id_for_user(product_id: str, user: User) -> Product | N
     if not product:
         return None
     # Check ownership
-    if product.user.ref.id != user.id:  # type: ignore
+    await product.fetch_link(Product.user)  # type: ignore[attr-defined]
+    if product.user.id != user.id:  # type: ignore[attr-defined]
         return None
     return product
 
@@ -107,7 +108,8 @@ async def get_product_detail(
             )
         )
 
-    user_id = product.user.ref.id  # type: ignore
+    await product.fetch_link(Product.user)  # type: ignore[attr-defined]
+    user_id = product.user.id  # type: ignore[attr-defined]
     assert user_id is not None
     assert product.id is not None
 
@@ -257,7 +259,8 @@ async def get_variant_by_id_for_user(
     # Fetch the product to check ownership
     await variant.fetch_link(ProductVariant.product)
     product = variant.product  # type: ignore
-    if product.user.ref.id != user.id:  # type: ignore
+    await product.fetch_link(Product.user)  # type: ignore[attr-defined]
+    if product.user.id != user.id:  # type: ignore[attr-defined]
         return None
     return variant
 
