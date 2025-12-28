@@ -366,7 +366,8 @@ async def get_option_group_by_id_for_user(
     # Fetch the product to check ownership
     await group.fetch_link(ProductOptionGroup.product)
     product = group.product  # type: ignore
-    if product.user.ref.id != user.id:  # type: ignore
+    await product.fetch_link(Product.user)  # type: ignore[attr-defined]
+    if product.user.id != user.id:  # type: ignore[attr-defined]
         return None
     return group
 
