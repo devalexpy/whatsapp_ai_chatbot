@@ -35,6 +35,7 @@ services:
       - SERVER_URL=${EVOLUTION_SERVER_URL:-http://localhost:8080}
       - CONFIG_SESSION_PHONE_CLIENT=WhatsApp AI Chatbot
       - CONFIG_SESSION_PHONE_NAME=Chrome
+      - CONFIG_SESSION_PHONE_VERSION=2.3000.1031543708
       - DEL_INSTANCE=false
       
       # ========================================
