@@ -148,7 +148,7 @@ async def create_product(user: User, data: ProductCreate) -> Product:
     await product.fetch_link(Product.user)
 
     # Schedule embedding generation in background (debounced)
-    schedule_embedding_update(str(product.id))
+    await schedule_embedding_update(str(product.id))
 
     return product
 
