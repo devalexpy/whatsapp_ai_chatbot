@@ -35,6 +35,19 @@ class Settings(BaseSettings):
     # MongoDB
     mongo_uri: str = ""
 
+    # OpenAI (LangChain)
+    openai_api_key: str = ""
+    openai_embedding_model: str = "text-embedding-3-small"
+    openai_embedding_dimensions: int = 1536
+
+    # Upstash QStash (background tasks)
+    qstash_token: str = ""
+    qstash_current_signing_key: str = ""  # Current signing key para verificar webhooks
+    qstash_next_signing_key: str = ""  # Next signing key (para rotación)
+    qstash_url: str = ""  # URL de QStash (local dev o producción)
+
+    qstash_delay_seconds: int = 2  # Delay antes de procesar embedding
+
     # MinIO / S3
     minio_endpoint: str = "http://localhost:9000"
     minio_access_key: str = ""

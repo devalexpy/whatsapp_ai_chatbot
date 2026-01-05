@@ -45,24 +45,24 @@ jobs:
 
       - name: Deploy Evolution API
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'ENDSSH'
+          ssh -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
             cd ${{ env.DEPLOY_PATH }}
             
-            echo "📦 Pulling latest images..."
+            echo '📦 Pulling latest images...'
             docker compose pull
             
-            echo "🚀 Restarting services..."
+            echo '🚀 Restarting services...'
             docker compose up -d --force-recreate
             
-            echo "🧹 Cleaning up old images..."
+            echo '🧹 Cleaning up old images...'
             docker image prune -f
             
-            echo "✅ Deployment complete!"
+            echo '✅ Deployment complete!'
             
             # Verificar estado
-            echo "📊 Service status:"
+            echo '📊 Service status:'
             docker compose ps
-          ENDSSH
+          "
 
       - name: Health check
         run: |
@@ -70,15 +70,16 @@ jobs:
           sleep 15
           
           # Verificar que Evolution API responde
-          ssh -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'ENDSSH'
+          ssh -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+            cd ${{ env.DEPLOY_PATH }}
             if curl -s http://localhost:8080 > /dev/null; then
-              echo "✅ Evolution API is running!"
+              echo '✅ Evolution API is running!'
             else
-              echo "❌ Evolution API health check failed!"
+              echo '❌ Evolution API health check failed!'
               docker compose logs --tail=50 evolution-api
               exit 1
             fi
-          ENDSSH
+          "
 
       - name: Notify success
         if: success()

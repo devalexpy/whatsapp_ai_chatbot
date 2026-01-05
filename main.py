@@ -9,6 +9,7 @@ from config import settings
 from db import db
 from logging_config import get_logger, setup_logging
 from modules.auth.router import auth_router, setup_auth
+from modules.products.internal_router import internal_router
 from modules.products.models import (
     Product,
     ProductOption,
@@ -130,6 +131,11 @@ app.include_router(products_router)
 app.include_router(variants_router)
 app.include_router(option_groups_router)
 app.include_router(options_router)
+
+# ────────────────────────────────────────────────────────────
+# Internal (QStash webhooks - not in docs)
+# ────────────────────────────────────────────────────────────
+app.include_router(internal_router)
 
 # ────────────────────────────────────────────────────────────
 # CORS

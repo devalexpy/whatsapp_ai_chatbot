@@ -25,6 +25,10 @@ from modules.products.schemas import (
     ProductVariantUpdate,
 )
 from modules.products.storage import storage_service
+from modules.products.tasks import (
+    mark_product_embedding_stale,
+    schedule_embedding_update,
+)
 from modules.users.models import User
 
 
@@ -139,9 +143,13 @@ async def get_product_detail(
 
 async def create_product(user: User, data: ProductCreate) -> Product:
     """Create a new product for a user."""
-    product = Product(user=user, **data.model_dump())
+    product = Product(user=user, embedding_stale=True, **data.model_dump())
     await product.insert()
     await product.fetch_link(Product.user)
+
+    # Schedule embedding generation in background (debounced)
+    schedule_embedding_update(str(product.id))
+
     return product
 
 
@@ -158,6 +166,9 @@ async def update_product(
         update_data["updated_at"] = utc_now()
         await product.update({"$set": update_data})
         await product.sync()
+
+        # Schedule embedding update in background (debounced)
+        await mark_product_embedding_stale(product)
 
     return product
 
@@ -276,6 +287,10 @@ async def create_variant(
     variant = ProductVariant(product=product, **data.model_dump())
     await variant.insert()
     await variant.fetch_link(ProductVariant.product)
+
+    # Update product embedding (includes variant info)
+    await mark_product_embedding_stale(product)
+
     return variant
 
 
@@ -293,6 +308,10 @@ async def update_variant(
         await variant.update({"$set": update_data})
         await variant.sync()
 
+        # Update product embedding
+        await variant.fetch_link(ProductVariant.product)
+        await mark_product_embedding_stale(variant.product)  # type: ignore
+
     return variant
 
 
@@ -302,10 +321,18 @@ async def delete_variant(variant_id: str, user: User) -> bool:
     if not variant:
         return False
 
+    # Get product before deleting variant
+    await variant.fetch_link(ProductVariant.product)
+    product: Product = variant.product  # type: ignore[assignment]
+
     if variant.image:
         storage_service.delete_file(variant.image)
 
     await variant.delete()
+
+    # Update product embedding
+    await mark_product_embedding_stale(product)
+
     return True
 
 
@@ -386,6 +413,10 @@ async def create_option_group(
     group = ProductOptionGroup(product=product, **data.model_dump())
     await group.insert()
     await group.fetch_link(ProductOptionGroup.product)
+
+    # Update product embedding
+    await mark_product_embedding_stale(product)
+
     return group
 
 
@@ -403,6 +434,10 @@ async def update_option_group(
         await group.update({"$set": update_data})
         await group.sync()
 
+        # Update product embedding
+        await group.fetch_link(ProductOptionGroup.product)
+        await mark_product_embedding_stale(group.product)  # type: ignore
+
     return group
 
 
@@ -411,6 +446,10 @@ async def delete_option_group(group_id: str, user: User) -> bool:
     group = await get_option_group_by_id_for_user(group_id, user)
     if not group:
         return False
+
+    # Get product before deleting
+    await group.fetch_link(ProductOptionGroup.product)
+    product: Product = group.product  # type: ignore[assignment]
 
     # Delete group options
     options = await ProductOption.find(
@@ -423,6 +462,10 @@ async def delete_option_group(group_id: str, user: User) -> bool:
         await option.delete()
 
     await group.delete()
+
+    # Update product embedding
+    await mark_product_embedding_stale(product)
+
     return True
 
 
@@ -471,6 +514,11 @@ async def create_option(
     option = ProductOption(option_group=group, **data.model_dump())
     await option.insert()
     await option.fetch_link(ProductOption.option_group)
+
+    # Update product embedding
+    await group.fetch_link(ProductOptionGroup.product)
+    await mark_product_embedding_stale(group.product)  # type: ignore
+
     return option
 
 
@@ -488,6 +536,12 @@ async def update_option(
         await option.update({"$set": update_data})
         await option.sync()
 
+        # Update product embedding
+        await option.fetch_link(ProductOption.option_group)
+        group: ProductOptionGroup = option.option_group  # type: ignore
+        await group.fetch_link(ProductOptionGroup.product)
+        await mark_product_embedding_stale(group.product)  # type: ignore
+
     return option
 
 
@@ -497,10 +551,20 @@ async def delete_option(option_id: str, user: User) -> bool:
     if not option:
         return False
 
+    # Get product before deleting
+    await option.fetch_link(ProductOption.option_group)
+    group: ProductOptionGroup = option.option_group  # type: ignore
+    await group.fetch_link(ProductOptionGroup.product)
+    product: Product = group.product  # type: ignore
+
     if option.image:
         storage_service.delete_file(option.image)
 
     await option.delete()
+
+    # Update product embedding
+    await mark_product_embedding_stale(product)
+
     return True
 
 

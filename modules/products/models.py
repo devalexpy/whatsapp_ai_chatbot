@@ -21,6 +21,12 @@ class Product(Document):
     description: str | None = None
     price: float
     image: str | None = None  # MinIO file_key
+
+    # Embedding for semantic search
+    embedding: list[float] | None = None  # Vector (1536 dims for OpenAI)
+    embedding_text: str | None = None  # Text used to generate the embedding
+    embedding_stale: bool = Field(default=True)  # True = needs regeneration
+
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 
