@@ -42,12 +42,32 @@ def utc_now() -> datetime:
 # ────────────────────────────────────────────────────────────
 async def get_products(
     user: User, skip: int = 0, limit: int = 20
-) -> tuple[list[Product], int]:
-    """Get paginated list of products for a user."""
+) -> tuple[list[Product], int, dict[str, list[str]]]:
+    """Get paginated list of products for a user with variant names.
+
+    Returns:
+        Tuple of (products, total_count, variant_names_by_product_id)
+    """
     query = Product.find(Product.user.id == user.id)  # type: ignore[attr-defined]
     total = await query.count()
     products = await query.skip(skip).limit(limit).to_list()
-    return products, total
+
+    # Get variant names for all products in a single query
+    variant_names_map: dict[str, list[str]] = {}
+    if products:
+        product_ids = [p.id for p in products]
+        variants = await ProductVariant.find(
+            {"product.$id": {"$in": product_ids}}
+        ).to_list()
+
+        # Group variant names by product id
+        for variant in variants:
+            product_id = str(variant.product.ref.id)  # type: ignore
+            if product_id not in variant_names_map:
+                variant_names_map[product_id] = []
+            variant_names_map[product_id].append(variant.name)
+
+    return products, total, variant_names_map
 
 
 async def get_product_by_id(product_id: str) -> Product | None:
@@ -55,14 +75,19 @@ async def get_product_by_id(product_id: str) -> Product | None:
     return await Product.get(PydanticObjectId(product_id))
 
 
-async def get_product_by_id_for_user(product_id: str, user: User) -> Product | None:
+async def get_product_by_id_for_user(
+    product_id: str, user: User | str
+) -> Product | None:
     """Get a product by ID only if it belongs to the user."""
     product = await get_product_by_id(product_id)
     if not product:
         return None
     # Check ownership
     await product.fetch_link(Product.user)  # type: ignore[attr-defined]
-    if product.user.id != user.id:  # type: ignore[attr-defined]
+    if isinstance(user, User):
+        if product.user.id != user.id:  # type: ignore[attr-defined]
+            return None
+    elif product.user_id != user:  # user is str
         return None
     return product
 
@@ -143,7 +168,12 @@ async def get_product_detail(
 
 async def create_product(user: User, data: ProductCreate) -> Product:
     """Create a new product for a user."""
-    product = Product(user=user, embedding_stale=True, **data.model_dump())
+    product = Product(
+        user=user,
+        user_id=str(user.id),  # Denormalized for vector search filtering
+        embedding_stale=True,
+        **data.model_dump(),
+    )
     await product.insert()
     await product.fetch_link(Product.user)
 
@@ -245,7 +275,9 @@ async def delete_product_image(product_id: str, user: User) -> bool:
 # ────────────────────────────────────────────────────────────
 # Product Variant Service
 # ────────────────────────────────────────────────────────────
-async def get_variants_by_product(product_id: str, user: User) -> list[ProductVariant]:
+async def get_variants_by_product(
+    product_id: str, user: User | str
+) -> list[ProductVariant]:
     """Get variants for a product if it belongs to the user."""
     product = await get_product_by_id_for_user(product_id, user)
     if not product:
@@ -370,7 +402,7 @@ async def delete_variant_image(variant_id: str, user: User) -> bool:
 # Product Option Group Service
 # ────────────────────────────────────────────────────────────
 async def get_option_groups_by_product(
-    product_id: str, user: User
+    product_id: str, user: User | str
 ) -> list[ProductOptionGroup]:
     """Get option groups for a product if it belongs to the user."""
     product = await get_product_by_id_for_user(product_id, user)

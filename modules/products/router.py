@@ -149,7 +149,9 @@ async def list_products(
         examples=[10, 20, 50],
     ),
 ):
-    products, total = await service.get_products(current_user, skip=skip, limit=limit)
+    products, total, variant_names_map = await service.get_products(
+        current_user, skip=skip, limit=limit
+    )
     return ProductListResponse(
         items=[
             ProductResponse(
@@ -159,6 +161,7 @@ async def list_products(
                 description=p.description,
                 price=p.price,
                 image=p.image,
+                variant_names=variant_names_map.get(str(p.id), []),
                 created_at=p.created_at,
                 updated_at=p.updated_at,
             )

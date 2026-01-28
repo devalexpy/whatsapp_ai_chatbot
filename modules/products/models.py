@@ -17,6 +17,7 @@ class Product(Document):
     """Product model."""
 
     user: Link["User"]  # Product owner
+    user_id: str  # Denormalized user ID for vector search filtering
     name: Indexed(str)  # type: ignore
     description: str | None = None
     price: float

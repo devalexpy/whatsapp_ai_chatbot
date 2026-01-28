@@ -167,6 +167,10 @@ class ProductResponse(BaseModel):
     description: str | None = Field(default=None, description="Product description")
     price: float = Field(description="Base product price")
     image: str | None = Field(default=None, description="Product image URL")
+    variant_names: list[str] = Field(
+        default=[],
+        description="List of variant names for this product",
+    )
     created_at: datetime = Field(description="Creation date")
     updated_at: datetime = Field(description="Last update date")
 
@@ -179,6 +183,7 @@ class ProductResponse(BaseModel):
                 "description": "Delicious burger with 100% beef patty",
                 "price": 12.99,
                 "image": "https://cdn.example.com/products/507f1f77bcf86cd799439011/image.jpg",
+                "variant_names": ["Small", "Medium", "Large"],
                 "created_at": "2024-01-15T10:30:00Z",
                 "updated_at": "2024-01-15T10:30:00Z",
             }

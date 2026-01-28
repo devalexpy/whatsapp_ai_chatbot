@@ -1,96 +1,36 @@
 """
-Embedding service for semantic product search using LangChain.
+Embedding service for semantic product search.
 
-Uses OpenAI embeddings by default. Add more providers as needed.
+Uses centralized LLM configuration from bot.llm module.
 """
 
 import logging
-from functools import lru_cache
 
-from langchain_core.embeddings import Embeddings
-from langchain_openai import OpenAIEmbeddings
-
-from config import settings
-from modules.products.models import (
-    Product,
-    ProductOption,
-    ProductOptionGroup,
-    ProductVariant,
-)
+from bot.llm import generate_embedding, generate_embeddings_batch
+from modules.products.models import Product
 
 logger = logging.getLogger(__name__)
 
 
-@lru_cache(maxsize=1)
-def get_embeddings_model() -> Embeddings:
-    """Get the OpenAI embeddings model (cached)."""
-    return OpenAIEmbeddings(
-        model=settings.openai_embedding_model,
-        dimensions=settings.openai_embedding_dimensions,
-        api_key=settings.openai_api_key,  # ty:ignore[unknown-argument]
-    )
-
-
 async def generate_product_text(product: Product) -> str:
     """
-    Generate enriched text representation of a product for embedding.
+    Generate simple text representation of a product for embedding.
 
-    Combines product name, description, price, variants, and options
-    into a single searchable text.
+    Uses only name and description for cleaner semantic matching.
+    Variants and options are handled separately after initial search.
     """
-    parts = [f"Producto: {product.name}"]
+    parts = [product.name]
 
     if product.description:
-        parts.append(f"Descripción: {product.description}")
+        # Truncate description to first 200 chars for cleaner embedding
+        desc = (
+            product.description[:200]
+            if len(product.description) > 200
+            else product.description
+        )
+        parts.append(desc)
 
-    parts.append(f"Precio: ${product.price:.2f}")
-
-    # Get variants
-    variants = await ProductVariant.find(
-        ProductVariant.product.id == product.id  # type: ignore
-    ).to_list()
-
-    if variants:
-        variant_texts = [f"{v.name} (${v.price:.2f})" for v in variants]
-        parts.append(f"Variantes: {', '.join(variant_texts)}")
-
-    # Get option groups and options
-    option_groups = await ProductOptionGroup.find(
-        ProductOptionGroup.product.id == product.id  # type: ignore
-    ).to_list()
-
-    if option_groups:
-        parts.append("Opciones:")
-        for group in option_groups:
-            options = await ProductOption.find(
-                ProductOption.option_group.id == group.id  # type: ignore
-            ).to_list()
-
-            if options:
-                option_texts = []
-                for opt in options:
-                    if opt.is_default:
-                        option_texts.append(f"{opt.name} (incluido)")
-                    elif opt.price > 0:
-                        option_texts.append(f"{opt.name} (+${opt.price:.2f})")
-                    else:
-                        option_texts.append(opt.name)
-
-                parts.append(f"  - {group.name}: {', '.join(option_texts)}")
-
-    return "\n".join(parts)
-
-
-async def generate_embedding(text: str) -> list[float]:
-    """Generate embedding vector for text."""
-    embeddings = get_embeddings_model()
-    return await embeddings.aembed_query(text)
-
-
-async def generate_embeddings_batch(texts: list[str]) -> list[list[float]]:
-    """Generate embeddings for multiple texts in a single batch."""
-    embeddings = get_embeddings_model()
-    return await embeddings.aembed_documents(texts)
+    return " - ".join(parts)
 
 
 async def update_product_embedding(product: Product) -> Product:

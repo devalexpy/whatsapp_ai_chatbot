@@ -15,4 +15,9 @@ dependencies = [
     "langchain-openai>=0.2.0",
     # Upstash QStash
     "qstash>=2.0.0",
+    "langgraph>=1.0.5",
+    # Testing UI
+    "streamlit>=1.40.0",
+    "langchain-mongodb>=0.10.0",
+    "watchdog>=6.0.0",
 ]

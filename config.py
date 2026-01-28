@@ -35,8 +35,12 @@ class Settings(BaseSettings):
     # MongoDB
     mongo_uri: str = ""
 
-    # OpenAI (LangChain)
+    # LLM Configuration
     openai_api_key: str = ""
+    # Chat model
+    openai_chat_model: str = "gpt-4o-mini"
+    openai_chat_temperature: float = 0.7
+    # Embedding model
     openai_embedding_model: str = "text-embedding-3-small"
     openai_embedding_dimensions: int = 1536
 
